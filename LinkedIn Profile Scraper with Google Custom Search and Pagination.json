@@ -1,0 +1,325 @@
+{
+  "name": "LinkedIn Profile Scraper with Google Custom Search and Pagination",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "currentStartIndex",
+              "value": 1,
+              "type": "number"
+            },
+            {
+              "id": "id-2",
+              "name": "maxPages",
+              "value": 10,
+              "type": "number"
+            },
+            {
+              "id": "id-3",
+              "name": "currentPage",
+              "value": 1,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d07e452d-c1c9-43f1-a120-bbf337920853",
+      "name": "Initialize Variables",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -624,
+        -224
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/customsearch/v1",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "AIzaSyAqcC294441VoH9ZIQjoWyLMX1DooZV0yE"
+            },
+            {
+              "name": "cx",
+              "value": "82ecfb411c6024da4"
+            },
+            {
+              "name": "q",
+              "value": "site:linkedin.com/in/ OR site:linkedin.com/pub/"
+            },
+            {
+              "name": "start",
+              "value": "={{ $runIndex === 0 ? $json.currentStartIndex : $('Increment Start Index').item.json.currentStartIndex }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "441cdbad-1136-4193-800e-6c96aa8b2d0e",
+      "name": "Google Custom Search API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -416,
+        -240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Google Custom Search API response\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // Extract search results from items array\n  if (data.items && Array.isArray(data.items)) {\n    for (const searchItem of data.items) {\n      results.push({\n        title: searchItem.title || '',\n        link: searchItem.link || '',\n        snippet: searchItem.snippet || ''\n      });\n    }\n  }\n  \n  // Preserve queries object for pagination\n  if (data.queries) {\n    results[0] = {\n      ...results[0],\n      queries: data.queries\n    };\n  }\n}\n\nreturn results.map(result => ({ json: result }));"
+      },
+      "id": "2e454781-f3bd-466e-aece-0e671879fcbe",
+      "name": "Parse Search Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        -160
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "11b91d10-ff08-4e3c-a709-978bfd8b604a",
+      "name": "Wait 5 Seconds",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        48,
+        -160
+      ],
+      "webhookId": "c3a24e02-f363-449f-baed-027ac9970e5e"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1abBYkFb5gp8SnfD3MzxyjL-kZbP_c4xakefuaKK0SFQ",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1abBYkFb5gp8SnfD3MzxyjL-kZbP_c4xakefuaKK0SFQ/edit#gid=0"
+        },
+        "options": {}
+      },
+      "id": "a93f793d-b6af-487c-9abe-843c3e997a55",
+      "name": "Append to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        336,
+        -224
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "7zHw9wWK4toXIqGp",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.queries.nextPage }}",
+              "operator": {
+                "type": "object",
+                "operation": "exists"
+              }
+            },
+            {
+              "id": "id-2",
+              "leftValue": "={{ $json.currentPage }}",
+              "rightValue": "={{ $json.maxPages }}",
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "ignoreCase": true
+        }
+      },
+      "id": "5d492120-1e87-4ecb-a3e1-d503a80e4851",
+      "name": "Check Pagination",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        592,
+        -240
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "currentStartIndex",
+              "value": "={{ $('Parse Search Results').item.json.queries.nextPage[0].startIndex }}",
+              "type": "number"
+            },
+            {
+              "id": "id-2",
+              "name": "currentPage",
+              "value": "={{ $('Initialize Variables').item.json.currentPage + 1 }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b676f371-2003-4dd8-8b28-6360e011770f",
+      "name": "Increment Start Index",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        960,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "id": "a6c19c0d-3f57-4baa-9be6-5600d09e6e73",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -912,
+        -192
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Initialize Variables",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize Variables": {
+      "main": [
+        [
+          {
+            "node": "Google Custom Search API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Custom Search API": {
+      "main": [
+        [
+          {
+            "node": "Parse Search Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Search Results": {
+      "main": [
+        [
+          {
+            "node": "Wait 5 Seconds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 5 Seconds": {
+      "main": [
+        [
+          {
+            "node": "Append to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Check Pagination",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Pagination": {
+      "main": [
+        [
+          {
+            "node": "Increment Start Index",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Increment Start Index": {
+      "main": [
+        [
+          {
+            "node": "Google Custom Search API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "309f44a6-8d7d-4d6b-aa69-417d828b17e4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "72156bc916d3d0db690057c918dd2e43bfd322d0f5b3db53eb90e26971f0f8d6"
+  },
+  "id": "C1hQ0nd69U6j6Wo53vIN5",
+  "tags": []
+}
